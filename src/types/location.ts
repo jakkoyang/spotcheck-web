@@ -18,6 +18,7 @@ export interface Location {
   busyScore: number
   atmosphereScore: AtmosphereScore
   isActive: boolean
+  isFeatured: boolean
   vibeTagSlugs: string[]
   lastUpdated: string
 }
