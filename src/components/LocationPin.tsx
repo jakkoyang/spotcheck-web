@@ -1,12 +1,5 @@
 import type { Location } from '../types/location'
-
-type BusyTier = 'low' | 'moderate' | 'high'
-
-function getBusyTier(busyScore: number): BusyTier {
-  if (busyScore <= 3) return 'low'
-  if (busyScore <= 7) return 'moderate'
-  return 'high'
-}
+import { type BusyTier, getBusyTier } from '../lib/busyTier'
 
 const tierClasses: Record<BusyTier, string> = {
   low: 'bg-emerald-500 ring-emerald-400/40',
