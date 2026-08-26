@@ -16,6 +16,7 @@ dist-ssr
 .env.example
 .claudeignore
 spotcheck_PRD.md
+spotcheck_PRD_HL.md
 
 # Editor directories and files
 .vscode/*
