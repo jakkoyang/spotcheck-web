@@ -14,24 +14,24 @@ export function LocationCard({ location, vibeTags, onClose }: LocationCardProps)
   const tags = vibeTags.filter((tag) => location.vibeTagSlugs.includes(tag.slug))
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md rounded-t-2xl border border-slate-700 bg-slate-800/90 p-4 shadow-xl backdrop-blur">
+    <div className="absolute inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md rounded-t-2xl border border-neutral-700 bg-neutral-800/90 p-4 shadow-xl backdrop-blur">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-50">{location.name}</h2>
-          <p className="text-sm text-slate-400">{location.address}</p>
+          <h2 className="text-lg font-semibold text-neutral-50">{location.name}</h2>
+          <p className="text-sm text-neutral-400">{location.address}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+          className="shrink-0 rounded-full p-1 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       <div className="mt-4">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-700">
           <div
             className={`h-2 rounded-full ${busyTierColors[tier].bar}`}
             style={{ width: `${location.busyScore * 10}%` }}
@@ -42,7 +42,7 @@ export function LocationCard({ location, vibeTags, onClose }: LocationCardProps)
         </p>
       </div>
 
-      <span className="mt-3 inline-block rounded-full border border-slate-600 bg-slate-700/60 px-2.5 py-0.5 text-xs font-medium text-slate-200">
+      <span className="mt-3 inline-block rounded-full border border-neutral-600 bg-neutral-700/60 px-2.5 py-0.5 text-xs font-medium text-neutral-200">
         {location.atmosphereScore}
       </span>
 
@@ -50,14 +50,14 @@ export function LocationCard({ location, vibeTags, onClose }: LocationCardProps)
         {tags.map((tag) => (
           <span
             key={tag.id}
-            className="rounded-full border border-slate-700 bg-slate-900/60 px-2.5 py-1 text-xs text-slate-300"
+            className="rounded-full border border-neutral-700 bg-neutral-900/60 px-2.5 py-1 text-xs text-neutral-300"
           >
             {tag.label}
           </span>
         ))}
       </div>
 
-      <p className="mt-3 text-xs text-slate-500">{getFreshnessLabel(location.lastUpdated)}</p>
+      <p className="mt-3 text-xs text-neutral-500">{getFreshnessLabel(location.lastUpdated)}</p>
     </div>
   )
 }
