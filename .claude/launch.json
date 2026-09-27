@@ -4,8 +4,40 @@
     {
       "name": "spotcheck-dev",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js"
+      ],
       "port": 5173
+    },
+    {
+      "name": "spotcheck-dev-mock",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--mode",
+        "mock",
+        "--port",
+        "5174"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "mobile\\start-web.cmd",
+      "runtimeArgs": [],
+      "port": 8081
+    },
+    {
+      "name": "mobile-native",
+      "runtimeExecutable": "mobile\\start-native.cmd",
+      "runtimeArgs": [],
+      "port": 8081
+    },
+    {
+      "name": "mobile-native-mock",
+      "runtimeExecutable": "mobile\\start-native-mock.cmd",
+      "runtimeArgs": [],
+      "port": 8081
     }
   ]
 }

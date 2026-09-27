@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import type { Location, VibeTag } from '../types/location'
 import { busyTierColors, busyTierDescriptor, getBusyTier } from '../lib/busyTier'
 import { getFreshnessLabel } from '../lib/freshness'
@@ -14,20 +14,20 @@ export function LocationCard({ location, vibeTags, onClose }: LocationCardProps)
   const tags = vibeTags.filter((tag) => location.vibeTagSlugs.includes(tag.slug))
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-10 mx-auto w-full max-w-md rounded-t-2xl border border-neutral-700 bg-neutral-800/90 p-4 shadow-xl backdrop-blur">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-neutral-50">{location.name}</h2>
-          <p className="text-sm text-neutral-400">{location.address}</p>
-        </div>
+    <div className="px-4 pb-4">
+      <div className="flex items-start gap-2">
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
-          className="shrink-0 rounded-full p-1 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+          aria-label="Back to list"
+          className="-ml-1.5 shrink-0 rounded-full p-1 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
         >
-          <X className="h-5 w-5" />
+          <ChevronLeft className="h-5 w-5" />
         </button>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold leading-snug text-neutral-50">{location.name}</h2>
+          <p className="text-sm text-neutral-400">{location.address}</p>
+        </div>
       </div>
 
       <div className="mt-4">

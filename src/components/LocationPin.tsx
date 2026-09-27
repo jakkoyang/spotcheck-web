@@ -9,10 +9,11 @@ const tierClasses: Record<BusyTier, string> = {
 
 interface LocationPinProps {
   location: Location
+  selected?: boolean
   onClick?: () => void
 }
 
-export function LocationPin({ location, onClick }: LocationPinProps) {
+export function LocationPin({ location, selected = false, onClick }: LocationPinProps) {
   const tier = getBusyTier(location.busyScore)
 
   return (
@@ -20,7 +21,10 @@ export function LocationPin({ location, onClick }: LocationPinProps) {
       type="button"
       onClick={onClick}
       aria-label={`${location.name}: busy score ${location.busyScore} of 10`}
-      className={`h-4 w-4 cursor-pointer rounded-full ring-4 transition-transform hover:scale-125 ${tierClasses[tier]}`}
+      aria-pressed={selected}
+      className={`h-4 w-4 cursor-pointer rounded-full ring-4 transition-transform ${tierClasses[tier]} ${
+        selected ? 'scale-150 outline-2 outline-offset-4 outline-white' : 'hover:scale-125'
+      }`}
     />
   )
 }

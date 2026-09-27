@@ -1,2 +1,9 @@
 @import "tailwindcss";
 @import "mapbox-gl/dist/mapbox-gl.css";
+
+/* Keep the Mapbox logo and attribution visible above the bottom sheet (BottomSheet sets --sheet-height). */
+.mapboxgl-ctrl-bottom-left,
+.mapboxgl-ctrl-bottom-right {
+  bottom: var(--sheet-height, 0px);
+  transition: bottom 300ms ease-out;
+}
