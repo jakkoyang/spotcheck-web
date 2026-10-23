@@ -14,7 +14,7 @@ import { LocationListItem } from '../components/LocationListItem'
 import { SearchBar } from '../components/SearchBar'
 import { SpotsLayer } from '../components/SpotsLayer'
 import { useSession } from '../lib/auth'
-import { chipShadow, floatingShadow, sheetShadow } from '../lib/elevation'
+import { floatingShadow, sheetShadow } from '../lib/elevation'
 import {
   busyReportsRequireSignIn,
   getLocations,
@@ -54,6 +54,9 @@ const SNAP = { closed: -1, half: 0, full: 1 } as const
 const SHOW_LIST_CLEARANCE = 64
 // gorhom's default handle area above the sheet content.
 const SHEET_HANDLE_HEIGHT = 24
+// The floating locate button (h-14), and the map it needs left between itself and the chips.
+const LOCATE_BUTTON_SIZE = 56
+const LOCATE_TOP_CLEARANCE = 48
 // First guess at the spot card's height, before it has been measured once.
 const DETAIL_HEIGHT_ESTIMATE = 400
 const CAMPUS_CENTER: [number, number] = [-89.4, 43.0745]
@@ -345,6 +348,12 @@ export default function ExploreScreen() {
   // Ornaments live just under the filter chips: always visible, never colliding with the
   // sheet or the "Show list" pill.
   const ornamentTop = overlayEdge + 6
+  // Google Maps-style locate button: bottom right, level with the "Show list" pill when the sheet
+  // is closed, otherwise riding just above the sheet. Hidden once the sheet is tall enough that
+  // the button would reach the filter chips (the full list, a long spot card, the keyboard).
+  const locateBottom = sheetIndex === SNAP.closed ? insets.bottom + 12 : coveredHeight(sheetIndex) + 12
+  const showLocateButton =
+    keyboardHeight === 0 && locateBottom + LOCATE_BUTTON_SIZE + LOCATE_TOP_CLEARANCE < windowHeight - overlayEdge
 
   return (
     <View className="flex-1 bg-white dark:bg-neutral-900">
@@ -420,19 +429,19 @@ export default function ExploreScreen() {
           selectedVibeSlugs={vibeSlugs}
           onToggleVibe={toggleVibe}
           onClearVibes={clearVibes}
-          // Pinned at the end of the chip row, so the sheet can never cover it at any height.
-          trailing={
-            <Pressable
-              onPress={centerOnUser}
-              accessibilityLabel="Center map on my location"
-              className="h-9 w-9 items-center justify-center rounded-full border border-transparent bg-white active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:active:bg-neutral-800"
-              style={chipShadow}
-            >
-              <LocateFixed size={17} color={userLocation.coords ? colors.accent : colors.textSecondary} />
-            </Pressable>
-          }
         />
       </View>
+
+      {showLocateButton && (
+        <Pressable
+          onPress={centerOnUser}
+          accessibilityLabel="Center map on my location"
+          className="absolute right-4 h-14 w-14 items-center justify-center rounded-full border border-transparent bg-white active:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:active:bg-neutral-800"
+          style={[floatingShadow, { bottom: locateBottom }]}
+        >
+          <LocateFixed size={24} color={userLocation.coords ? colors.accent : colors.textSecondary} />
+        </Pressable>
+      )}
 
       <BottomSheet
         ref={sheetRef}
