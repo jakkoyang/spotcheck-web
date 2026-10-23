@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import * as AppleAuthentication from 'expo-apple-authentication'
 import { ExternalLink, LogOut, Moon, Smartphone, Sun } from 'lucide-react-native'
-import { signInWithProvider, signOut, useSession, type OAuthProvider } from '../lib/auth'
+import { signInWithProvider, signOut, usesNativeAppleSignIn, useSession, type OAuthProvider } from '../lib/auth'
 import { useThemeColors, useThemePreference, type ThemePreference } from '../lib/theme'
 
 const PROVIDERS: { id: OAuthProvider; label: string; buttonClass: string; textClass: string; spinner: string }[] = [
@@ -103,23 +104,41 @@ export default function SettingsScreen() {
               Report how busy spots are with your Google or Apple account.
             </Text>
           </View>
-          {PROVIDERS.map((p) => (
-            <Pressable
-              key={p.id}
-              onPress={() => handleSignIn(p.id)}
-              disabled={pendingProvider !== null}
-              accessibilityRole="button"
-              className={`h-12 flex-row items-center justify-center rounded-lg border ${p.buttonClass} ${
-                pendingProvider && pendingProvider !== p.id ? 'opacity-50' : ''
-              }`}
-            >
-              {pendingProvider === p.id ? (
-                <ActivityIndicator color={p.spinner} />
-              ) : (
-                <Text className={`text-sm font-semibold ${p.textClass}`}>{p.label}</Text>
-              )}
-            </Pressable>
-          ))}
+          {PROVIDERS.map((p) =>
+            p.id === 'apple' && usesNativeAppleSignIn ? (
+              // App Review requires Apple's own button for the native flow; it sizes only via style.
+              <AppleAuthentication.AppleAuthenticationButton
+                key={p.id}
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={
+                  colors.isDark
+                    ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                    : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={8}
+                style={{ height: 48, width: '100%', opacity: pendingProvider ? 0.5 : 1 }}
+                onPress={() => {
+                  if (!pendingProvider) handleSignIn(p.id)
+                }}
+              />
+            ) : (
+              <Pressable
+                key={p.id}
+                onPress={() => handleSignIn(p.id)}
+                disabled={pendingProvider !== null}
+                accessibilityRole="button"
+                className={`h-12 flex-row items-center justify-center rounded-lg border ${p.buttonClass} ${
+                  pendingProvider && pendingProvider !== p.id ? 'opacity-50' : ''
+                }`}
+              >
+                {pendingProvider === p.id ? (
+                  <ActivityIndicator color={p.spinner} />
+                ) : (
+                  <Text className={`text-sm font-semibold ${p.textClass}`}>{p.label}</Text>
+                )}
+              </Pressable>
+            ),
+          )}
           {error && <Text className="text-sm text-rose-600 dark:text-rose-400">{error}</Text>}
         </View>
       )}

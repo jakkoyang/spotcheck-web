@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Platform } from 'react-native'
+import * as AppleAuthentication from 'expo-apple-authentication'
+import * as Crypto from 'expo-crypto'
 import * as Linking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
 import type { Session } from '@supabase/supabase-js'
@@ -45,9 +48,49 @@ async function createSessionFromUrl(url: string): Promise<void> {
   }
 }
 
+// On iOS, Apple sign-in uses the native sheet (App Review expects it) instead of the web flow.
+export const usesNativeAppleSignIn = Platform.OS === 'ios'
+
+// Signs in with the native Apple sheet and hands its identity token to Supabase. Apple gets the
+// SHA-256 of the nonce and Supabase the raw value, which it hashes to check the token.
+async function signInWithAppleNative(): Promise<void> {
+  const supabase = getSupabaseClient()
+  if (!supabase) throw new Error("Sign-in isn't available: Supabase isn't configured.")
+
+  const rawNonce = Crypto.randomUUID()
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce)
+  let credential: AppleAuthentication.AppleAuthenticationCredential
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    })
+  } catch (e) {
+    if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return
+    throw e
+  }
+  if (!credential.identityToken) throw new Error("Apple didn't return an identity token. Try again.")
+
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+    nonce: rawNonce,
+  })
+  if (error) throw error
+
+  // Apple only shares the name on the very first sign-in, and it isn't in the token, so save it now.
+  const fullName = [credential.fullName?.givenName, credential.fullName?.familyName].filter(Boolean).join(' ')
+  if (fullName) await supabase.auth.updateUser({ data: { full_name: fullName } })
+}
+
 // Opens the provider's sign-in page in an in-app browser tab and stores the resulting session.
 // Resolves without a session if the user cancels.
 export async function signInWithProvider(provider: OAuthProvider): Promise<void> {
+  if (provider === 'apple' && usesNativeAppleSignIn) return signInWithAppleNative()
+
   const supabase = getSupabaseClient()
   if (!supabase) throw new Error("Sign-in isn't available: Supabase isn't configured.")
 
