@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { SlidersHorizontal } from 'lucide-react'
 import { categoryFilters, type CategoryFilterId } from '../lib/spotFilters'
 import type { VibeTag } from '../types/location'
 
@@ -18,6 +16,8 @@ interface FilterBarProps {
   onToggleVibe: (slug: string) => void
 }
 
+// One horizontally scrolling chip row, like Google Maps: single-select categories first,
+// then a divider, then multi-select vibe toggles.
 export function FilterBar({
   categoryId,
   onCategoryChange,
@@ -25,48 +25,31 @@ export function FilterBar({
   selectedVibeSlugs,
   onToggleVibe,
 }: FilterBarProps) {
-  const [showVibes, setShowVibes] = useState(false)
-  const vibeCount = selectedVibeSlugs.length
-
   return (
-    <div className="flex flex-col gap-2">
-      <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
+    <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
+      {categoryFilters.map((filter) => (
         <button
+          key={filter.id}
           type="button"
-          onClick={() => setShowVibes((current) => !current)}
-          aria-label="Vibe filters"
-          aria-expanded={showVibes}
-          className={`${chipClass(showVibes || vibeCount > 0)} flex items-center gap-1`}
+          onClick={() => onCategoryChange(filter.id)}
+          aria-pressed={categoryId === filter.id}
+          className={chipClass(categoryId === filter.id)}
         >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          {vibeCount > 0 && vibeCount}
+          {filter.label}
         </button>
-        {categoryFilters.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            onClick={() => onCategoryChange(filter.id)}
-            className={chipClass(categoryId === filter.id)}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
-
-      {showVibes && (
-        <div className="flex flex-wrap gap-2">
-          {vibeTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              onClick={() => onToggleVibe(tag.slug)}
-              className={chipClass(selectedVibeSlugs.includes(tag.slug))}
-            >
-              {tag.label}
-            </button>
-          ))}
-        </div>
-      )}
+      ))}
+      {vibeTags.length > 0 && <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-neutral-700" />}
+      {vibeTags.map((tag) => (
+        <button
+          key={tag.id}
+          type="button"
+          onClick={() => onToggleVibe(tag.slug)}
+          aria-pressed={selectedVibeSlugs.includes(tag.slug)}
+          className={chipClass(selectedVibeSlugs.includes(tag.slug))}
+        >
+          {tag.label}
+        </button>
+      ))}
     </div>
   )
 }

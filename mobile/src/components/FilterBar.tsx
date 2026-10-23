@@ -1,100 +1,102 @@
-import { useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
-import { SlidersHorizontal } from 'lucide-react-native'
+import { useState, type ReactNode } from 'react'
+import { ScrollView, View } from 'react-native'
+import { ChevronDown, Clock, Heart, Sparkles } from 'lucide-react-native'
 import { categoryFilters, type CategoryFilterId } from '../lib/spotFilters'
+import { useThemeColors } from '../lib/theme'
 import type { VibeTag } from '../types/location'
+import { Chip } from './Chip'
+import { VibePicker } from './VibePicker'
 
-function Chip({
-  active,
-  onPress,
-  label,
-  children,
-  accessibilityLabel,
-}: {
-  active: boolean
-  onPress: () => void
-  label?: string
-  children?: React.ReactNode
-  accessibilityLabel?: string
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={accessibilityLabel}
-      className={`flex-row items-center gap-1 rounded-full border px-3 py-1.5 ${
-        active ? 'border-emerald-400 bg-emerald-950' : 'border-neutral-700 bg-neutral-900'
-      }`}
-    >
-      {children}
-      {label !== undefined && (
-        <Text className={`text-xs font-medium ${active ? 'text-emerald-300' : 'text-neutral-300'}`}>
-          {label}
-        </Text>
-      )}
-    </Pressable>
-  )
-}
+const Divider = () => <View className="mx-1 h-5 w-px bg-neutral-400/60 dark:bg-neutral-600" />
 
 interface FilterBarProps {
   categoryId: CategoryFilterId
   onCategoryChange: (categoryId: CategoryFilterId) => void
+  openNow: boolean
+  onToggleOpenNow: () => void
+  savedOnly: boolean
+  onToggleSavedOnly: () => void
   vibeTags: VibeTag[]
   selectedVibeSlugs: string[]
   onToggleVibe: (slug: string) => void
+  onClearVibes: () => void
+  // Pinned after the scrolling chips (e.g. the locate button), so it's always on screen.
+  trailing?: ReactNode
 }
 
+// One horizontally scrolling chip row, like Google Maps: single-select categories, then
+// Open now / Saved toggles, then a Vibes chip that opens the multi-select vibe picker,
+// with an optional fixed control at the end of the row.
 export function FilterBar({
   categoryId,
   onCategoryChange,
+  openNow,
+  onToggleOpenNow,
+  savedOnly,
+  onToggleSavedOnly,
   vibeTags,
   selectedVibeSlugs,
   onToggleVibe,
+  onClearVibes,
+  trailing,
 }: FilterBarProps) {
-  const [showVibes, setShowVibes] = useState(false)
+  const colors = useThemeColors()
+  const [vibesOpen, setVibesOpen] = useState(false)
+  const toggleIconColor = (active: boolean) => (active ? colors.onAccent : colors.textSecondary)
   const vibeCount = selectedVibeSlugs.length
-  const vibesActive = showVibes || vibeCount > 0
 
   return (
-    <View className="gap-2">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        className="-mx-3"
-        contentContainerClassName="gap-2 px-3"
-      >
-        <Chip
-          active={vibesActive}
-          onPress={() => setShowVibes((current) => !current)}
-          label={vibeCount > 0 ? String(vibeCount) : undefined}
-          accessibilityLabel="Vibe filters"
+    <>
+      <View className="-mx-3 flex-row items-center pr-3">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          className="flex-1"
+          // Vertical padding keeps the chip shadows from being clipped by the scroll view.
+          contentContainerClassName="items-center gap-2 px-3 py-1"
         >
-          <SlidersHorizontal size={14} color={vibesActive ? '#6ee7b7' : '#d4d4d4'} />
-        </Chip>
-        {categoryFilters.map((filter) => (
-          <Chip
-            key={filter.id}
-            active={categoryId === filter.id}
-            onPress={() => onCategoryChange(filter.id)}
-            label={filter.label}
-          />
-        ))}
-      </ScrollView>
-
-      {showVibes && (
-        <View className="flex-row flex-wrap gap-2">
-          {vibeTags.map((tag) => (
+          {categoryFilters.map((filter) => (
             <Chip
-              key={tag.id}
-              active={selectedVibeSlugs.includes(tag.slug)}
-              onPress={() => onToggleVibe(tag.slug)}
-              label={tag.label}
+              key={filter.id}
+              active={categoryId === filter.id}
+              onPress={() => onCategoryChange(filter.id)}
+              label={filter.label}
             />
           ))}
-        </View>
-      )}
-    </View>
+          <Divider />
+          <Chip
+            active={openNow}
+            onPress={onToggleOpenNow}
+            label="Open now"
+            icon={<Clock size={13} color={toggleIconColor(openNow)} />}
+          />
+          <Chip
+            active={savedOnly}
+            onPress={onToggleSavedOnly}
+            label="Saved"
+            icon={<Heart size={13} color={toggleIconColor(savedOnly)} fill={savedOnly ? colors.onAccent : 'transparent'} />}
+          />
+          {vibeTags.length > 0 && (
+            <Chip
+              active={vibeCount > 0}
+              onPress={() => setVibesOpen(true)}
+              label={vibeCount > 0 ? `Vibes · ${vibeCount}` : 'Vibes'}
+              icon={<Sparkles size={13} color={toggleIconColor(vibeCount > 0)} />}
+              trailing={<ChevronDown size={14} color={toggleIconColor(vibeCount > 0)} />}
+            />
+          )}
+        </ScrollView>
+        {trailing}
+      </View>
+      <VibePicker
+        visible={vibesOpen}
+        vibeTags={vibeTags}
+        selectedVibeSlugs={selectedVibeSlugs}
+        onToggleVibe={onToggleVibe}
+        onClear={onClearVibes}
+        onClose={() => setVibesOpen(false)}
+      />
+    </>
   )
 }

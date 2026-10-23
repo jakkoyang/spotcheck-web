@@ -10,6 +10,7 @@ interface LocationRow {
   lng: number
   address: string
   hours_description: string
+  opening_hours: string | null
   amenities: string[]
   busy_score: number
   atmosphere_score: string
@@ -28,6 +29,7 @@ function toLocation(row: LocationRow): Location {
     lng: row.lng,
     address: row.address,
     hoursDescription: row.hours_description,
+    openingHours: row.opening_hours ?? null,
     amenities: row.amenities,
     busyScore: row.busy_score,
     atmosphereScore: row.atmosphere_score as AtmosphereScore,

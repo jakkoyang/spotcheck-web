@@ -21,7 +21,7 @@ import type { Location, VibeTag } from '../types/location'
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
 // Keeps a flown-to point clear of the search bar and filter chips.
 const MAP_TOP_PADDING = 120
-const DEFAULT_CATEGORY: CategoryFilterId = 'study'
+const DEFAULT_CATEGORY: CategoryFilterId = 'all'
 
 // Frames every given spot in the part of the map the sheet leaves visible.
 function fitToSpots(map: MapRef | null, spots: Location[], snap: SheetSnap, animate = true) {

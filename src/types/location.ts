@@ -14,6 +14,8 @@ export interface Location {
   lng: number
   address: string
   hoursDescription: string
+  // OpenStreetMap opening_hours syntax (e.g. "Mo-Fr 07:00-22:00; Sa,Su 08:00-20:00"); null when not verified.
+  openingHours: string | null
   amenities: string[]
   busyScore: number
   atmosphereScore: AtmosphereScore
