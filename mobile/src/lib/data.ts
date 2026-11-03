@@ -78,9 +78,16 @@ export function busyReportsRequireSignIn(): boolean {
   return getDataClient() !== null
 }
 
+// Where a report came from: the spot card, or a check-in prompt notification.
+export type ReportSource = 'manual' | 'prompt'
+
 // Records "how busy is it right now" and returns the spot with its refreshed score.
 // Live: inserts into busy_reports; a trigger (migration 0002) recomputes locations.busy_score.
-export async function submitBusyReport(locationId: string, busyScore: number): Promise<Location> {
+export async function submitBusyReport(
+  locationId: string,
+  busyScore: number,
+  source: ReportSource = 'manual',
+): Promise<Location> {
   const supabase = getDataClient()
   if (!supabase) {
     const mock = mockLocations.find((l) => l.id === locationId)
@@ -90,7 +97,13 @@ export async function submitBusyReport(locationId: string, busyScore: number): P
     return { ...mock }
   }
 
-  const { error } = await supabase.from('busy_reports').insert({ location_id: locationId, busy_score: busyScore })
+  // `source` (migration 0003) is only sent for prompted reports, so manual reporting keeps
+  // working on a database that hasn't had that migration applied yet.
+  const { error } = await supabase.from('busy_reports').insert({
+    location_id: locationId,
+    busy_score: busyScore,
+    ...(source === 'prompt' && { source }),
+  })
   if (error) throw error
   const { data, error: fetchError } = await supabase
     .from('locations')

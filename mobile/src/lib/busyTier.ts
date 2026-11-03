@@ -12,6 +12,13 @@ export const busyTierDescriptor: Record<BusyTier, string> = {
   high: 'Packed',
 }
 
+// The 0-10 score a report of each tier records (a representative value inside the tier).
+export const busyTierReportScore: Record<BusyTier, number> = {
+  low: 2,
+  moderate: 5,
+  high: 9,
+}
+
 // Raw hex for native map layers, which can't use Tailwind classes (violet/amber/rose-500).
 export const busyTierHex: Record<BusyTier, string> = {
   low: '#8b5cf6',

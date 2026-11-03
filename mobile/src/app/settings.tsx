@@ -1,8 +1,10 @@
-import { useState } from 'react'
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { useCallback, useState } from 'react'
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native'
+import { router, useFocusEffect } from 'expo-router'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import { ExternalLink, LogOut, Moon, Smartphone, Sun } from 'lucide-react-native'
 import { signInWithProvider, signOut, usesNativeAppleSignIn, useSession, type OAuthProvider } from '../lib/auth'
+import { disableCheckIns, useCheckInSettings } from '../lib/checkIns'
 import { useThemeColors, useThemePreference, type ThemePreference } from '../lib/theme'
 
 const PROVIDERS: { id: OAuthProvider; label: string; buttonClass: string; textClass: string; spinner: string }[] = [
@@ -34,6 +36,9 @@ const ABOUT_LINKS = [
   { label: 'Improve this map', url: 'https://www.mapbox.com/map-feedback/' },
 ]
 
+// Android tints switch thumbs with the system accent (teal) unless told otherwise.
+const SWITCH_THUMB = Platform.OS === 'android' ? '#ffffff' : undefined
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <Text className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-neutral-500">{children}</Text>
@@ -46,6 +51,20 @@ export default function SettingsScreen() {
   const [themePreference, setThemePreference] = useThemePreference()
   const [pendingProvider, setPendingProvider] = useState<OAuthProvider | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const checkIns = useCheckInSettings()
+  const refreshCheckIns = checkIns.refresh
+  // Coming back from the check-ins screen (or system settings) may have changed the state.
+  useFocusEffect(useCallback(() => refreshCheckIns(), [refreshCheckIns]))
+
+  const toggleCheckIns = async (on: boolean) => {
+    if (on) {
+      // Turning on goes through the explainer, which asks for the permissions.
+      router.push('/check-ins')
+      return
+    }
+    await disableCheckIns()
+    refreshCheckIns()
+  }
 
   const handleSignIn = async (provider: OAuthProvider) => {
     setError(null)
@@ -142,6 +161,41 @@ export default function SettingsScreen() {
           {error && <Text className="text-sm text-rose-600 dark:text-rose-400">{error}</Text>}
         </View>
       )}
+
+      <SectionLabel>Check-ins</SectionLabel>
+      <View className="rounded-xl border border-neutral-200 dark:border-neutral-800">
+        <View className="flex-row items-center gap-3 px-4 py-3">
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Check-in prompts</Text>
+            <Text className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+              Asks how busy a spot is after you have been there 5 minutes
+            </Text>
+          </View>
+          <Switch
+            value={checkIns.settings?.enabled ?? false}
+            onValueChange={toggleCheckIns}
+            disabled={!checkIns.settings}
+            trackColor={{ true: colors.accent }}
+            thumbColor={SWITCH_THUMB}
+            accessibilityLabel="Check-in prompts"
+          />
+        </View>
+        {checkIns.settings?.enabled && (
+          <View className="flex-row items-center gap-3 border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
+            <View className="flex-1">
+              <Text className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Quiet hours</Text>
+              <Text className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">No prompts from 10 PM to 8 AM</Text>
+            </View>
+            <Switch
+              value={checkIns.settings.quietHours}
+              onValueChange={(quietHours) => checkIns.update({ quietHours })}
+              trackColor={{ true: colors.accent }}
+              thumbColor={SWITCH_THUMB}
+              accessibilityLabel="Quiet hours"
+            />
+          </View>
+        )}
+      </View>
 
       <SectionLabel>Appearance</SectionLabel>
       <View className="flex-row gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-800">

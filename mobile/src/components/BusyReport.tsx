@@ -1,27 +1,26 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { Check } from 'lucide-react-native'
-import { busyTierDescriptor, busyTierHex, type BusyTier } from '../lib/busyTier'
+import { busyTierDescriptor, busyTierHex, busyTierReportScore, type BusyTier } from '../lib/busyTier'
 import { useThemeColors } from '../lib/theme'
 
-// Each choice maps to a representative 0-10 score in its tier.
-const CHOICES: { tier: BusyTier; label: string; score: number }[] = [
-  { tier: 'low', label: busyTierDescriptor.low, score: 2 },
-  { tier: 'moderate', label: busyTierDescriptor.moderate, score: 5 },
-  { tier: 'high', label: busyTierDescriptor.high, score: 9 },
-]
+const CHOICES: { tier: BusyTier; label: string; score: number }[] = (['low', 'moderate', 'high'] as const).map(
+  (tier) => ({ tier, label: busyTierDescriptor[tier], score: busyTierReportScore[tier] }),
+)
 
 interface BusyReportProps {
   onSubmit: (busyScore: number) => Promise<void>
   // Live data requires an account; mock mode doesn't.
   needsSignIn: boolean
   onSignIn: () => void
+  // Start in the "thanks" state, e.g. when the report was already sent from a notification.
+  initiallyReported?: boolean
 }
 
-export function BusyReport({ onSubmit, needsSignIn, onSignIn }: BusyReportProps) {
+export function BusyReport({ onSubmit, needsSignIn, onSignIn, initiallyReported = false }: BusyReportProps) {
   const colors = useThemeColors()
   const [pendingScore, setPendingScore] = useState<number | null>(null)
-  const [reported, setReported] = useState(false)
+  const [reported, setReported] = useState(initiallyReported)
   const [error, setError] = useState<string | null>(null)
 
   if (reported) {

@@ -42,7 +42,17 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "SpotCheck uses your location to show walking times to study spots and to center the map on you."
+          "locationWhenInUsePermission": "SpotCheck uses your location to show walking times to study spots and to center the map on you.",
+          "locationAlwaysAndWhenInUsePermission": "With check-in prompts on, SpotCheck notices when you've spent a few minutes at a study spot and asks how busy it is. Your location stays on your phone.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#7c3aed"
         }
       ],
       [

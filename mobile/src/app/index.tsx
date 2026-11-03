@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BackHandler, Keyboard, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { AppState, BackHandler, Keyboard, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import Mapbox, { Camera, LocationPuck, MapView } from '@rnmapbox/maps'
@@ -14,6 +14,7 @@ import { LocationListItem } from '../components/LocationListItem'
 import { SearchBar } from '../components/SearchBar'
 import { SpotsLayer } from '../components/SpotsLayer'
 import { useSession } from '../lib/auth'
+import { noteReported, subscribeToPromptResponses, syncCheckIns, type PromptResponse } from '../lib/checkIns'
 import { floatingShadow, sheetShadow } from '../lib/elevation'
 import {
   busyReportsRequireSignIn,
@@ -22,6 +23,7 @@ import {
   getVibeTags,
   setSpotSaved,
   submitBusyReport,
+  type ReportSource,
 } from '../lib/data'
 import { openWalkingDirections } from '../lib/directions'
 import { sortByDistance, walkLabel, type Coords } from '../lib/distance'
@@ -127,8 +129,14 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets()
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const colors = useThemeColors()
-  const { session } = useSession()
+  const { session, loading: sessionLoading } = useSession()
   const userLocation = useUserLocation()
+  // Latest position for re-picking watched spots on foreground, without re-running that effect on every move.
+  const coordsRef = useRef<Coords | null>(null)
+  // Kept current for the check-in notification listener, which subscribes once.
+  const handlePromptRef = useRef<(prompt: PromptResponse) => void>(() => {})
+  // The spot whose report was just sent from a check-in notification's button.
+  const [promptReportedId, setPromptReportedId] = useState<string | null>(null)
   const cameraRef = useRef<Camera>(null)
   const sheetRef = useRef<BottomSheet>(null)
   const mapReadyRef = useRef(false)
@@ -246,6 +254,7 @@ export default function ExploreScreen() {
 
   const closeDetail = () => {
     setSelectedId(null)
+    setPromptReportedId(null)
     if (!returnToListRef.current) sheetRef.current?.close()
   }
 
@@ -330,11 +339,53 @@ export default function ExploreScreen() {
     setSavedIds(new Set(next))
   }
 
-  const reportBusy = async (location: Location, busyScore: number) => {
-    const updated = await submitBusyReport(location.id, busyScore)
+  const reportBusy = async (location: Location, busyScore: number, source: ReportSource = 'manual') => {
+    const updated = await submitBusyReport(location.id, busyScore, source)
     setLocations((current) => current.map((l) => (l.id === updated.id ? updated : l)))
     successFeedback()
+    noteReported(location.id).catch(() => {})
   }
+
+  // Keep the check-in prompts watching the spots nearest the user: once spots load, then each
+  // time the app comes back to the front. (No-op while prompts are off.)
+  useEffect(() => {
+    if (loading) return
+    const sync = () => {
+      syncCheckIns(locations, coordsRef.current).catch(() => {})
+    }
+    sync()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') sync()
+    })
+    return () => subscription.remove()
+    // The spot list only matters as of load; positions come from the ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  useEffect(() => {
+    coordsRef.current = userLocation.coords
+  }, [userLocation.coords])
+
+  // A tapped check-in notification opens its spot; tapping one of its buttons also sends that report.
+  useEffect(() => {
+    handlePromptRef.current = (prompt) => {
+      const spot = locations.find((l) => l.id === prompt.spotId)
+      if (!spot) return
+      selectLocation(spot)
+      const canReport = !busyReportsRequireSignIn() || session !== null
+      if (prompt.busyScore === null || !canReport) return
+      reportBusy(spot, prompt.busyScore, 'prompt')
+        .then(() => setPromptReportedId(spot.id))
+        // Failed (e.g. already reported here in the last 10 minutes): the card's buttons remain.
+        .catch(() => {})
+    }
+  })
+
+  // Wait for spots and the sign-in state, so the response can be acted on as soon as it arrives.
+  useEffect(() => {
+    if (loading || sessionLoading) return
+    return subscribeToPromptResponses((prompt) => handlePromptRef.current(prompt))
+  }, [loading, sessionLoading])
 
   const trimmedQuery = query.trim()
   const listTitle = trimmedQuery
@@ -482,6 +533,7 @@ export default function ExploreScreen() {
               walkLabel={walkTo(selectedLocation)}
               saved={savedIds.has(selectedLocation.id)}
               reportNeedsSignIn={busyReportsRequireSignIn() && !session}
+              reportedFromPrompt={promptReportedId === selectedLocation.id}
               onClose={closeDetail}
               onToggleSaved={() => toggleSaved(selectedLocation)}
               onDirections={() => openWalkingDirections(selectedLocation)}

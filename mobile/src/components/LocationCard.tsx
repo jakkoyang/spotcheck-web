@@ -18,6 +18,8 @@ interface LocationCardProps {
   walkLabel: string | null
   saved: boolean
   reportNeedsSignIn: boolean
+  // The report was already sent from a check-in notification.
+  reportedFromPrompt?: boolean
   onClose: () => void
   onToggleSaved: () => void
   onDirections: () => void
@@ -33,6 +35,7 @@ export function LocationCard({
   walkLabel,
   saved,
   reportNeedsSignIn,
+  reportedFromPrompt = false,
   onClose,
   onToggleSaved,
   onDirections,
@@ -129,7 +132,13 @@ export function LocationCard({
 
       <View className="h-px bg-neutral-200 dark:bg-neutral-800" />
 
-      <BusyReport key={location.id} onSubmit={onReport} needsSignIn={reportNeedsSignIn} onSignIn={onSignIn} />
+      <BusyReport
+        key={`${location.id}-${reportedFromPrompt}`}
+        onSubmit={onReport}
+        needsSignIn={reportNeedsSignIn}
+        onSignIn={onSignIn}
+        initiallyReported={reportedFromPrompt}
+      />
     </View>
   )
 }
