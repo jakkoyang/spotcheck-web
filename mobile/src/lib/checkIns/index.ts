@@ -8,7 +8,15 @@ import type { Location } from '../../types/location'
 import { readPromptResponse, requestNotificationPermission, type PromptResponse } from './notifications'
 import { pickRegions } from './regions'
 import { withTouch, type CheckInSpot } from './rules'
-import { readHistory, readSettings, writeHistory, writeSettings, writeSpots, type CheckInSettings } from './store'
+import {
+  readHistory,
+  readSettings,
+  writeHistory,
+  writePickCenter,
+  writeSettings,
+  writeSpots,
+  type CheckInSettings,
+} from './store'
 import { cancelCountdown, GEOFENCE_TASK } from './task'
 
 // Check-in prompts: after someone has spent a few minutes at a study spot, a notification asks
@@ -73,6 +81,7 @@ export async function syncCheckIns(locations: Location[], center: Coords | null)
   const here = center ?? (last && { lat: last.coords.latitude, lng: last.coords.longitude })
   if (!here || spots.length === 0) return
   await ExpoLocation.startGeofencingAsync(GEOFENCE_TASK, pickRegions(spots, here))
+  await writePickCenter(here)
 }
 
 // A report from anywhere counts: don't prompt about that spot again for a while.

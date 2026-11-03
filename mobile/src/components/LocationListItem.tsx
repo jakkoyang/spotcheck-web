@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { BusyBadge } from './BusyStatus'
 import { busyTierHex, getBusyTier, STALE_HEX } from '../lib/busyTier'
@@ -10,10 +11,13 @@ import type { Location } from '../types/location'
 interface LocationListItemProps {
   location: Location
   walkLabel?: string | null
-  onPress?: () => void
+  // Takes the spot (rather than a per-row closure) so one stable handler serves every row.
+  onSelect: (location: Location) => void
 }
 
-export function LocationListItem({ location, walkLabel, onPress }: LocationListItemProps) {
+// Memoized: the list re-renders on every sheet move, keyboard change and location update, and
+// a row only needs to when its own spot, walk time or handler changes.
+export const LocationListItem = memo(function LocationListItem({ location, walkLabel, onSelect }: LocationListItemProps) {
   const freshness = getFreshnessLevel(location.lastUpdated)
   const openStatus = getOpenStatus(location.openingHours)
   const subtitle = [getCategoryMeta(location.category).label, walkLabel].filter(Boolean).join(' · ')
@@ -22,7 +26,7 @@ export function LocationListItem({ location, walkLabel, onPress }: LocationListI
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onSelect(location)}
       className="w-full flex-row items-center gap-3 px-4 py-3 active:bg-neutral-100 dark:active:bg-neutral-800"
     >
       <View
@@ -55,4 +59,4 @@ export function LocationListItem({ location, walkLabel, onPress }: LocationListI
       <BusyBadge location={location} />
     </Pressable>
   )
-}
+})

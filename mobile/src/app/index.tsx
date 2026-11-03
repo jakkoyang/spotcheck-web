@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, BackHandler, Keyboard, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -15,7 +15,7 @@ import { SearchBar } from '../components/SearchBar'
 import { SpotsLayer } from '../components/SpotsLayer'
 import { useSession } from '../lib/auth'
 import { noteReported, subscribeToPromptResponses, syncCheckIns, type PromptResponse } from '../lib/checkIns'
-import { floatingShadow, sheetShadow } from '../lib/elevation'
+import { floatingShadow, sheetBackgroundShadow, sheetShadow } from '../lib/elevation'
 import {
   busyReportsRequireSignIn,
   getLocations,
@@ -64,6 +64,12 @@ const DETAIL_HEIGHT_ESTIMATE = 400
 const CAMPUS_CENTER: [number, number] = [-89.4, 43.0745]
 
 type SortMode = 'busy' | 'nearest'
+
+// Defined once: an inline component here would be a new type each render, remounting every separator.
+// Inset to line up with the row text, past the icon.
+function ListSeparator() {
+  return <View className="ml-[72px] h-px bg-neutral-200 dark:bg-neutral-800" />
+}
 
 interface CameraPadding {
   top: number
@@ -230,14 +236,24 @@ export default function ExploreScreen() {
     onlyIds: savedOnly ? savedIds : null,
     ...overrides,
   })
-  const filtered = filterSpots(locations, filterOptions())
-  const results =
-    sortMode === 'nearest' && userLocation.coords
-      ? sortByDistance(filtered, userLocation.coords)
-      : sortByLeastBusy(filtered)
+  // Derived lists are memoized: a new array makes the map re-send every pin to Mapbox (and re-cluster)
+  // and the list re-render every row, which is what made dragging the sheet stutter.
+  const sortCoords = sortMode === 'nearest' ? userLocation.coords : null
+  const results = useMemo(() => {
+    const filtered = filterSpots(locations, {
+      query,
+      categoryId,
+      vibeSlugs,
+      openNow,
+      onlyIds: savedOnly ? savedIds : null,
+    })
+    return sortCoords ? sortByDistance(filtered, sortCoords) : sortByLeastBusy(filtered)
+  }, [locations, query, categoryId, vibeSlugs, openNow, savedOnly, savedIds, sortCoords])
   // The selected spot keeps its pin even if a filter change would hide it.
-  const pinnedLocations =
-    selectedLocation && !results.includes(selectedLocation) ? [...results, selectedLocation] : results
+  const pinnedLocations = useMemo(
+    () => (selectedLocation && !results.includes(selectedLocation) ? [...results, selectedLocation] : results),
+    [results, selectedLocation],
+  )
   const categoryLabel = categoryFilters.find((filter) => filter.id === categoryId)?.label ?? 'All'
   const walkTo = (location: Location) => walkLabel(userLocation.coords, location)
 
@@ -251,6 +267,25 @@ export default function ExploreScreen() {
     sheetRef.current?.snapToIndex(SNAP.half)
     flyTo(cameraRef.current, location.lng, location.lat, paddingFor(SNAP.half, detailSheetHeight))
   }
+
+  // Stable wrappers so the memoized pin layer and list rows don't re-render for a new function.
+  const selectLocationRef = useRef(selectLocation)
+  useEffect(() => {
+    selectLocationRef.current = selectLocation
+  })
+  const onSelectSpot = useCallback((location: Location) => selectLocationRef.current(location), [])
+  const onPressCluster = useCallback(
+    (coordinates: [number, number], zoom: number) =>
+      cameraRef.current?.setCamera({ centerCoordinate: coordinates, zoomLevel: zoom + 0.5, animationDuration: 500 }),
+    [],
+  )
+  const userCoords = userLocation.coords
+  const renderSpotRow = useCallback(
+    ({ item }: { item: Location }) => (
+      <LocationListItem location={item} walkLabel={walkLabel(userCoords, item)} onSelect={onSelectSpot} />
+    ),
+    [userCoords, onSelectSpot],
+  )
 
   const closeDetail = () => {
     setSelectedId(null)
@@ -351,7 +386,7 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (loading) return
     const sync = () => {
-      syncCheckIns(locations, coordsRef.current).catch(() => {})
+      syncCheckIns(locations, coordsRef.current).catch((e: unknown) => console.warn('[check-ins] sync failed:', e))
     }
     sync()
     const subscription = AppState.addEventListener('change', (state) => {
@@ -396,6 +431,19 @@ export default function ExploreScreen() {
         ? `${results.length} spots`
         : `${results.length} ${categoryLabel.toLowerCase()} spots`
   const nearestActive = sortMode === 'nearest' && userLocation.coords !== null
+  const sheetBackgroundStyle = useMemo(
+    () => ({
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      ...sheetBackgroundShadow,
+      // A shadow barely shows on the dark map, so dark mode keeps a hairline edge instead.
+      ...(colors.isDark && { borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth }),
+    }),
+    [colors],
+  )
+  const handleIndicatorStyle = useMemo(() => ({ backgroundColor: colors.handle, width: 40 }), [colors])
+
   // Ornaments live just under the filter chips: always visible, never colliding with the
   // sheet or the "Show list" pill.
   const ornamentTop = overlayEdge + 6
@@ -412,14 +460,18 @@ export default function ExploreScreen() {
           rather than onCameraChanged, whose gesture flag also fires when the keyboard resizes the map. */}
       <View
         style={{ flex: 1 }}
-        onTouchMove={(event) => {
-          // Only the list tucks away; a spot's card stays up while the user looks around it.
-          if (sheetIndex === SNAP.closed || selectedId) return
-          // Touches on the sheet itself also arrive here on Android; only drags on the visible map count.
-          if (event.nativeEvent.pageY > windowHeight - coveredHeight(sheetIndex)) return
-          Keyboard.dismiss()
-          sheetRef.current?.close()
-        }}
+        // Only the list tucks away (a spot's card stays up while the user looks around it), so the
+        // handler is only attached then: otherwise every finger movement on the map would run JS.
+        onTouchMove={
+          sheetIndex === SNAP.closed || selectedId
+            ? undefined
+            : (event) => {
+                // Touches on the sheet itself also arrive here on Android; only drags on the visible map count.
+                if (event.nativeEvent.pageY > windowHeight - coveredHeight(sheetIndex)) return
+                Keyboard.dismiss()
+                sheetRef.current?.close()
+              }
+        }
       >
         <MapView
           style={{ flex: 1 }}
@@ -436,15 +488,14 @@ export default function ExploreScreen() {
           }}
         >
           <Camera ref={cameraRef} defaultSettings={{ centerCoordinate: CAMPUS_CENTER, zoomLevel: 14 }} />
-          {userLocation.permission === 'granted' && <LocationPuck pulsing={{ isEnabled: true }} />}
+          {/* No pulsing: its animation keeps the map redrawing every frame, costly on basic phones. */}
+          {userLocation.permission === 'granted' && <LocationPuck pulsing={{ isEnabled: false }} />}
           <SpotsLayer
             locations={pinnedLocations}
             selectedId={selectedId}
             colors={colors}
-            onPressSpot={selectLocation}
-            onPressCluster={(coordinates, zoom) =>
-              cameraRef.current?.setCamera({ centerCoordinate: coordinates, zoomLevel: zoom + 0.5, animationDuration: 500 })
-            }
+            onPressSpot={onSelectSpot}
+            onPressCluster={onPressCluster}
           />
         </MapView>
       </View>
@@ -516,14 +567,8 @@ export default function ExploreScreen() {
           }
         }}
         style={sheetShadow}
-        backgroundStyle={{
-          backgroundColor: colors.background,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          // A shadow barely shows on the dark map, so dark mode keeps a hairline edge instead.
-          ...(colors.isDark && { borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth }),
-        }}
-        handleIndicatorStyle={{ backgroundColor: colors.handle, width: 40 }}
+        backgroundStyle={sheetBackgroundStyle}
+        handleIndicatorStyle={handleIndicatorStyle}
       >
         {selectedLocation ? (
           <BottomSheetScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 8 }}>
@@ -571,11 +616,12 @@ export default function ExploreScreen() {
                 </Pressable>
               </View>
             }
-            renderItem={({ item }: { item: Location }) => (
-              <LocationListItem location={item} walkLabel={walkTo(item)} onPress={() => selectLocation(item)} />
-            )}
-            // Inset to line up with the row text, past the icon.
-            ItemSeparatorComponent={() => <View className="ml-[72px] h-px bg-neutral-200 dark:bg-neutral-800" />}
+            renderItem={renderSpotRow}
+            ItemSeparatorComponent={ListSeparator}
+            // Render a screenful at a time; the defaults keep far more rows mounted than a basic phone needs.
+            initialNumToRender={8}
+            maxToRenderPerBatch={6}
+            windowSize={7}
             ListEmptyComponent={
               loading ? (
                 <ListSkeleton />

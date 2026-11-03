@@ -2,15 +2,17 @@ import * as ExpoLocation from 'expo-location'
 import * as TaskManager from 'expo-task-manager'
 import { distanceMeters, type Coords } from '../distance'
 import { cancelPrompt, isPromptScheduled, schedulePrompt } from './notifications'
-import { pickRegions } from './regions'
+import { pickRegions, REPICK_DISTANCE_M } from './regions'
 import { skipReason, withPrompt, type CheckInHistory } from './rules'
 import {
   readHistory,
   readPending,
+  readPickCenter,
   readSettings,
   readSpots,
   writeHistory,
   writePending,
+  writePickCenter,
   type PendingPrompt,
 } from './store'
 
@@ -57,31 +59,45 @@ export async function cancelCountdown(): Promise<void> {
   await writePending(null)
 }
 
+// One line per decision in logcat / the device console, so prompts that don't appear can be explained.
+const log = (message: string) => console.log(`[check-ins] ${message}`)
+
 async function handleEnter(spotId: string): Promise<void> {
   const settings = await readSettings()
   if (!settings.enabled) return
   const spots = await readSpots()
   const spot = spots.find((s) => s.id === spotId)
-  if (!spot) return
+  if (!spot) {
+    log(`entered ${spotId}: not in the cached spots`)
+    return
+  }
   const [history, counting] = await Promise.all([readHistory(), readPending().then(countingDown)])
   if (counting?.spotId === spotId) return
   // Judge this spot as if the prompt still counting down didn't exist: it may be the one replaced,
   // and it shouldn't hold this spot back through the shared cooldown.
   const base = counting ? withoutPrompt(history, counting) : history
-  if (skipReason(spot, base, { quietHours: settings.quietHours, spots })) return
+  const reason = skipReason(spot, base, { quietHours: settings.quietHours, spots })
+  if (reason) {
+    log(`entered ${spotId}: skipped (${reason})`)
+    return
+  }
 
   if (counting) {
     // Overlapping circles: only ask about whichever spot the user is actually closer to.
     const other = spots.find((s) => s.id === counting.spotId)
     if (other) {
       const here = await currentCoords()
-      if (!here || distanceMeters(here, other) <= distanceMeters(here, spot)) return
+      if (!here || distanceMeters(here, other) <= distanceMeters(here, spot)) {
+        log(`entered ${spotId}: kept the prompt for nearer ${other.id}`)
+        return
+      }
     }
     await cancelPrompt(counting.notificationId)
   }
 
   const now = Date.now()
   const notificationId = await schedulePrompt(spot)
+  log(`entered ${spotId}: prompt scheduled`)
   await Promise.all([
     writePending({ spotId, notificationId, scheduledAt: now }),
     writeHistory(withPrompt(base, spotId, now)),
@@ -93,15 +109,17 @@ async function handleExit(region: ExpoLocation.LocationRegion): Promise<void> {
   // Left before the delay was up: they weren't really there, so don't ask.
   if (pending?.spotId === region.identifier) await cancelCountdown()
 
-  // Re-pick the watched spots around where the user just was, so the nearest 20 stay covered.
+  // Keep the nearest 20 covered as the user moves: re-pick around them once they've gone far enough.
+  // (The last known position is plenty for that, and instant.)
   const spots = await readSpots()
-  if (spots.length === 0) return
-  const next = pickRegions(spots, { lat: region.latitude, lng: region.longitude })
-  const current = await TaskManager.getTaskOptionsAsync<{ regions?: ExpoLocation.LocationRegion[] }>(GEOFENCE_TASK).catch(
-    () => null,
-  )
-  const ids = (regions: ExpoLocation.LocationRegion[] | undefined) => (regions ?? []).map((r) => r.identifier).sort().join()
-  if (ids(current?.regions) !== ids(next)) await ExpoLocation.startGeofencingAsync(GEOFENCE_TASK, next)
+  const position = await ExpoLocation.getLastKnownPositionAsync().catch(() => null)
+  if (spots.length === 0 || !position) return
+  const here: Coords = { lat: position.coords.latitude, lng: position.coords.longitude }
+  const center = await readPickCenter()
+  if (center && distanceMeters(center, here) < REPICK_DISTANCE_M) return
+  await ExpoLocation.startGeofencingAsync(GEOFENCE_TASK, pickRegions(spots, here))
+  await writePickCenter(here)
+  log(`re-picked watched spots around ${here.lat.toFixed(4)}, ${here.lng.toFixed(4)}`)
 }
 
 // Overlapping spots deliver their enter events together. Handle them one at a time, or each sees
@@ -116,7 +134,10 @@ function handleEvent({ eventType, region }: GeofenceEvent): Promise<void> {
 
 TaskManager.defineTask<GeofenceEvent>(GEOFENCE_TASK, ({ data, error }) => {
   if (error || !data?.region.identifier) return Promise.resolve()
-  // A failed check-in is never worth surfacing; the next event tries again.
-  queue = queue.then(() => handleEvent(data)).catch(() => {})
+  // A failed check-in is never worth surfacing to the user (the next event tries again), but it
+  // is logged so a broken background task shows up in logcat / the device console.
+  queue = queue
+    .then(() => handleEvent(data))
+    .catch((e: unknown) => console.warn('[check-ins] geofence event failed:', e))
   return queue
 })

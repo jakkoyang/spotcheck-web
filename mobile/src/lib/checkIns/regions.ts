@@ -7,6 +7,10 @@ import type { CheckInSpot } from './rules'
 export const MAX_REGIONS = 20
 // iOS region monitoring isn't reliable below about 100 m.
 export const REGION_RADIUS_M = 100
+// Re-pick the watched set only once the user is this far from where it was last picked.
+// Re-registering makes the OS report an initial exit for every circle the user is outside, so
+// re-picking on any exit would loop (and drain the battery).
+export const REPICK_DISTANCE_M = 400
 
 // Regions for the spots nearest `center`, identified by spot id.
 export function pickRegions(spots: CheckInSpot[], center: Coords): LocationRegion[] {

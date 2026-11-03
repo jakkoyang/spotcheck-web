@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import type { Coords } from '../distance'
 import { EMPTY_HISTORY, type CheckInHistory, type CheckInSpot } from './rules'
 
 // Everything here lives on the device: the background task reads it while the app is closed,
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: CheckInSettings = { enabled: false, quietHours: t
 
 const KEYS = {
   settings: 'spotcheck:check-ins:settings',
+  pickCenter: 'spotcheck:check-ins:pick-center',
   spots: 'spotcheck:check-ins:spots',
   history: 'spotcheck:check-ins:history',
   pending: 'spotcheck:check-ins:pending',
@@ -51,6 +53,10 @@ export const readHistory = async (): Promise<CheckInHistory> => ({
   ...(await read<Partial<CheckInHistory>>(KEYS.history, {})),
 })
 export const writeHistory = (history: CheckInHistory) => write(KEYS.history, history)
+
+// Where the watched spots were last picked around.
+export const readPickCenter = () => read<Coords | null>(KEYS.pickCenter, null)
+export const writePickCenter = (center: Coords) => write(KEYS.pickCenter, center)
 
 export const readPending = () => read<PendingPrompt | null>(KEYS.pending, null)
 export const writePending = (pending: PendingPrompt | null) => write(KEYS.pending, pending)
