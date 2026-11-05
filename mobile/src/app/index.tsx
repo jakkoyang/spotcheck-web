@@ -146,6 +146,8 @@ export default function ExploreScreen() {
   const cameraRef = useRef<Camera>(null)
   const sheetRef = useRef<BottomSheet>(null)
   const mapReadyRef = useRef(false)
+  // The map style that has finished loading, which lags colors.mapStyle while a theme change loads.
+  const [loadedMapStyle, setLoadedMapStyle] = useState(colors.mapStyle)
   // Whether closing a spot's card returns to the list (opened from it) or the bare map (opened from a pin).
   const returnToListRef = useRef(false)
   const [locations, setLocations] = useState<Location[]>([])
@@ -482,6 +484,7 @@ export default function ExploreScreen() {
           compassEnabled={false}
           logoPosition={{ top: ornamentTop, left: 12 }}
           attributionPosition={{ top: ornamentTop, right: 12 }}
+          onDidFinishLoadingStyle={() => setLoadedMapStyle(colors.mapStyle)}
           onDidFinishLoadingMap={() => {
             mapReadyRef.current = true
             fitToSpots(cameraRef.current, results, viewport, paddingFor(sheetIndex), 0)
@@ -494,6 +497,7 @@ export default function ExploreScreen() {
             locations={pinnedLocations}
             selectedId={selectedId}
             colors={colors}
+            loadedMapStyle={loadedMapStyle}
             onPressSpot={onSelectSpot}
             onPressCluster={onPressCluster}
           />

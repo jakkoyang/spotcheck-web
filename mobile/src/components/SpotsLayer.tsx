@@ -63,7 +63,8 @@ function toFeature(location: Location): GeoJSON.Feature<GeoJSON.Point> {
   }
 }
 
-// The category icons drawn inside pins. Rendered once: each re-render re-rasterizes them natively.
+// The category icons drawn inside pins. Rendered once per map style: each re-render re-rasterizes
+// them natively.
 const PinImages = memo(function PinImages() {
   return (
     <Images>
@@ -82,6 +83,9 @@ interface SpotsLayerProps {
   locations: Location[]
   selectedId: string | null
   colors: ThemeColors
+  // The style that has finished loading. A new style drops the map's images, and Android can't
+  // re-add images drawn from views (it discards their bitmaps), so PinImages remounts to redraw them.
+  loadedMapStyle: string
   onPressSpot: (location: Location) => void
   onPressCluster: (coordinates: [number, number], expansionZoom: number) => void
 }
@@ -93,6 +97,7 @@ export const SpotsLayer = memo(function SpotsLayer({
   locations,
   selectedId,
   colors,
+  loadedMapStyle,
   onPressSpot,
   onPressCluster,
 }: SpotsLayerProps) {
@@ -164,7 +169,7 @@ export const SpotsLayer = memo(function SpotsLayer({
 
   return (
     <>
-      <PinImages />
+      <PinImages key={loadedMapStyle} />
 
       <ShapeSource
         ref={sourceRef}

@@ -37,6 +37,7 @@
           "RNMapboxMapsVersion": "11.33.0"
         }
       ],
+      "./plugins/withWindowsCmakePathLimit",
       "expo-web-browser",
       "expo-apple-authentication",
       [
