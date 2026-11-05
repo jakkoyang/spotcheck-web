@@ -28,3 +28,6 @@ spotcheck_PRD_HL.md
 *.njsproj
 *.sln
 *.sw?
+
+# Local mobile build output
+mobile/build/
