@@ -636,7 +636,7 @@ export default function ExploreScreen() {
                     <Text className="text-body font-semibold text-violet-600 dark:text-violet-400">Clear filters</Text>
                   </Pressable>
                 </View>
-              ) : null
+              ) : undefined
             }
             ListFooterComponent={
               placeResults.length > 0 ? (
@@ -655,7 +655,7 @@ export default function ExploreScreen() {
                     </Pressable>
                   ))}
                 </View>
-              ) : null
+              ) : undefined
             }
           />
         )}

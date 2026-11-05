@@ -83,7 +83,7 @@ export default function SettingsScreen() {
   const provider = user?.app_metadata?.provider as string | undefined
 
   return (
-    <ScrollView className="flex-1 bg-white dark:bg-neutral-900" contentContainerClassName="px-4 pb-10">
+    <ScrollView contentInsetAdjustmentBehavior="automatic" className="flex-1 bg-white dark:bg-neutral-900" contentContainerClassName="px-4 pb-10">
       <SectionLabel>Account</SectionLabel>
       {loading ? (
         <View className="items-center rounded-xl border border-neutral-200 py-6 dark:border-neutral-800">

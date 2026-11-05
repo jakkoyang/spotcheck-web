@@ -60,7 +60,7 @@ export default function CheckInsScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white dark:bg-neutral-900" contentContainerClassName="gap-6 px-5 pb-10 pt-4">
+    <ScrollView contentInsetAdjustmentBehavior="automatic" className="flex-1 bg-white dark:bg-neutral-900" contentContainerClassName="gap-6 px-5 pb-10 pt-4">
       <View className="gap-2">
         <Text className="text-title font-bold text-neutral-900 dark:text-neutral-50">Help keep the map fresh</Text>
         <Text className="text-body text-neutral-600 dark:text-neutral-400">

@@ -34,7 +34,7 @@
       [
         "@rnmapbox/maps",
         {
-          "RNMapboxMapsVersion": "11.20.1"
+          "RNMapboxMapsVersion": "11.33.0"
         }
       ],
       "expo-web-browser",
